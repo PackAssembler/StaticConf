@@ -1,35 +1,36 @@
 {-# LANGUAGE OverloadedStrings #-}
-import Web.Scotty
+import           Web.Scotty
 import qualified Web.Scotty
 
-import Control.Exception
-import Control.Monad
-import Control.Monad.IO.Class
+import           Control.Exception
+import           Control.Monad
+import           Control.Monad.IO.Class
 
-import Codec.Archive.Zip
+import           Codec.Archive.Zip
 
-import Data.Monoid
-import Data.List
 import qualified Data.Binary
+import           Data.List
+import           Data.Maybe                           (fromMaybe)
+import           Data.Monoid
 
-import qualified Database.Redis as Redis
+import qualified Database.Redis                       as Redis
 
-import Network.Wai.Middleware.RequestLogger
-import Network.Wai.Middleware.Static
-import Network.Wai.Parse
+import           Network.Wai.Middleware.RequestLogger
+import           Network.Wai.Middleware.Static
+import           Network.Wai.Parse
 
-import Text.Blaze.Html5.Attributes
-import qualified Text.Blaze.Html5 as H
-import qualified Text.Blaze.Html5.Attributes as A
-import Text.Blaze.Html.Renderer.Text (renderHtml)
+import           Text.Blaze.Html.Renderer.Text        (renderHtml)
+import qualified Text.Blaze.Html5                     as H
+import           Text.Blaze.Html5.Attributes
+import qualified Text.Blaze.Html5.Attributes          as A
 
-import qualified Data.ByteString.Lazy as B
-import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Char8                as BS
+import qualified Data.ByteString.Lazy                 as B
 
-import System.Directory (removeFile)
-import System.FilePath ((</>))
+import           System.Directory                     (removeFile)
+import           System.FilePath                      ((</>))
 import qualified System.IO.Strict
-import System.Random
+import           System.Random
 
 uploads :: String
 uploads = "uploads"
@@ -62,7 +63,7 @@ main = scotty 3000 $ do
             Right (Just correctKey) -> when (key == correctKey) $ liftIO (do
                 removeFile $ uploads </> BS.unpack name
                 Redis.runRedis rconn $ Redis.hdel dKeyHash [name]
-                return ()) 
+                return ())
             Left _ -> return ()
 
         redirect "/"
@@ -91,7 +92,7 @@ processFile rconn (_, fi) = do
 checkZip :: B.ByteString -> Bool
 checkZip zip = case Data.Binary.decodeOrFail zip of
     Left _ -> False
-    Right (_, _, a) -> let files = filesInArchive a in not (null files) && all (isPrefixOf "config/") files 
+    Right (_, _, a) -> let files = filesInArchive a in not (null files) && all (isPrefixOf "config/") files
 
 -- Keys
 keyChars :: String
@@ -111,6 +112,7 @@ template n = do
         H.head $ do
             H.title "StaticConf"
             H.link H.! href "styles.css" H.! rel "stylesheet" H.! type_ "text/css"
+            H.meta H.! name "viewport" H.! content "width=device-width"
         H.body $ H.div H.! class_ "container" $ do
             H.h1 $ do
                 "Static"
@@ -131,9 +133,7 @@ template n = do
                     H.li "config/SomeConfig.cfg"
                     H.li "config/somedir/SomeOtherConfig.txt"
                     H.li "config/somedir/BecauseINeedTwoConfigs.txt"
-                case n of
-                    Nothing -> return ()
-                    Just notice -> notice
+                fromMaybe (return ()) n
 
 -- Types of notices
 uploadedNotice :: String -> String -> H.Html
